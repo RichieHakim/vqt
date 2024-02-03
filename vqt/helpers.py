@@ -187,7 +187,8 @@ def make_VQT_filters(
             shape: (n_freq_bins, win_size)
     """
 
-    assert win_size%2==1, "RH Error: win_size should be an odd integer"
+    # if win_size % 2 != 1:
+    #     raise ValueError("RH Error: win_size should be an odd integer")
     
     ## Make frequencies. Use a geometric spacing.
     freqs = np.geomspace(
