@@ -1,5 +1,6 @@
 from vqt.vqt import VQT
 from vqt import helpers
+from vqt import vqt
 
 # __all__ = [
 #     'vqt',
