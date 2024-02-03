@@ -4,11 +4,11 @@ on:
   push:
     # branches: [ "main" ]
     # branches: [ "dev" ]
-    branches: [ "main", "dev" ]
+    branches: [ "master", "dev" ]
   pull_request:
     # branches: [ "main" ]
     # branches: [ "dev" ]    
-    branches: [ "main", "dev" ]        
+    branches: [ "master", "dev" ]        
   workflow_dispatch:
     inputs:
       name:
