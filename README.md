@@ -51,9 +51,9 @@ spectrograms, similar to the Short-time Fourier Transform (STFT). It can also be
 defined as a special case of a wavelet transform, as well as the generalization
 of the Constant Q-Transform (CQT). In fact, the VQT subsumes the CQT and STFT as
 both can be recreated using specific parameters of the VQT.
-<img src="docs/media/freq_response.png" alt="freq_response" width="300"  align="right"  style="margin-left: 10px"/>
 
 #### Why use the VQT?
+<img src="docs/media/freq_response.png" alt="freq_response" width="300"  align="right"  style="margin-left: 10px"/>
 
 It provides enough knobs to tune the time-frequency resolution trade-off to suit
 your needs.
@@ -74,14 +74,18 @@ modified.
     Gaussian. This should be made flexible and should ideally include at least
     the Hamming window.
   
-- Speed: 
-  - Time domain convolution is fast when the kernel is small, but slow when the
-    kernel is large.
-  - Unnecessary computation when downsampling. Currently, the filter bank is
-    applied to the entire signal, and then downsampled via average pooling. This
-    results in the highest accuracy possible, but a significant speed up can be
-    achieved by downsampling the signal first, and then applying the filter
-    bank.
+- Speed:
+  - Currently, it is likely that the existing code is about as fast as it can be
+    without sacrificing accuracy, flexibility, or code clarity. All the
+    important operations are done in PyTorch (with backends in `C` or `CUDA`).
+  - Allowing for some loss in accuracy:
+    - For conv1d approach: Use a strided convolution.
+    - For fftconv approach: Downsampl using `n=n_samples_downsampled` in
+      `ifft` function.
+  - Non-trivial ideas that theoretically could speed things up:
+    - An FFT implementation that allows for a reduced set of frequencies to be
+      computed.
+    - A
 
 
 #### Demo:
@@ -124,5 +128,3 @@ axs[1].set_ylabel('frequency (Hz)')
 axs[1].set_xlabel('time (s)')
 plt.show()
 ```
-
-
