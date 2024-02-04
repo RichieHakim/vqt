@@ -109,7 +109,7 @@ understand, and it has fewer constraints on the input parameters compared to
     important operations are done in PyTorch (with backends in `C` or `CUDA`).
   - Allowing for some loss in accuracy:
     - For conv1d approach: Use a strided convolution.
-    - For fftconv approach: Downsampl using `n=n_samples_downsampled` in `ifft`
+    - For fftconv approach: Downsample using `n=n_samples_downsampled` in `ifft`
       function.
   - Non-trivial ideas that theoretically could speed things up:
     - An FFT implementation that allows for a reduced set of frequencies to be
