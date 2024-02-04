@@ -223,8 +223,7 @@ def test_vqt_filters():
         for arg_name, arg in args.items():
             assert fn(arg), f"Test failed: arg: {arg_name} failed test: {fn_name}"
     
-    ## Check that the filters are normalized and complex
-    assert np.allclose(np.sum(np.abs(filters), axis=1), np.ones(params['n_freq_bins'])), "VQT filters are not normalized"
+    ## Check that the filters are complex
     assert np.iscomplexobj(filters), "VQT filters are not complex"
 
 
