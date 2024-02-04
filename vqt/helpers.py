@@ -83,6 +83,109 @@ def gaussian(x=None, mu=0, sig=1):
     return gaus
 
 
+def make_scaled_wave_basis(
+    mother, 
+    lens_waves, 
+    lens_windows=None, 
+    interp_kind='cubic', 
+    fill_value=0,
+):
+    """
+    Generates a set of wavelet-like basis functions by scaling a mother wavelet
+    to different sizes. \n
+    
+    Note that this does not necessarily result in a true
+    orthogonal 'wavelet' basis set. This function uses interpolation to adjust
+    the mother wavelet's size, making it suitable for creating filter banks with
+    various frequency resolutions.
+
+    RH 2024
+
+    Parameters:
+    - mother (np.ndarray): 
+        A 1D numpy array representing the mother wavelet used as the basis for scaling.
+    - lens_waves (int, list, tuple, np.ndarray): 
+        The lengths of the output waves. Can be a single integer or a list/array of integers.
+    - lens_windows (int, list, tuple, np.ndarray, None): 
+        The window lengths for each of the output waves. If None, defaults to
+        the values in lens_waves. Can be a single integer (applied to all waves)
+        or a list/array of integers corresponding to each wave length.
+    - interp_kind (str): 
+        Specifies the kind of interpolation as a string ('linear', 'nearest',
+        'zero', 'slinear', 'quadratic', 'cubic', where 'zero', 'slinear',
+        'quadratic' and 'cubic' refer to a spline interpolation of zeroth,
+        first, second or third order).
+    - fill_value (float): 
+        Value used to fill in for requested points outside of the domain of the
+        x_mother. Can be anything from scipy.interpolate.interp1d. If not
+        provided, defaults to 0.
+
+    Returns:
+        (tuple):
+        - waves (list): 
+            List of the scaled wavelets.
+        - xs (list):
+            List of the x-values for each of the scaled wavelets.
+
+    Example:
+    ```
+    mother_wave = np.cos(np.linspace(-2*np.pi, 2*np.pi, 10000, endpoint=True))
+    lens_waves = [50, 100, 200]
+    lens_windows = [100, 200, 400]
+    waves, xs = make_scaled_wave_basis(mother_wave, lens_waves, lens_windows)
+    ```
+    """
+    assert isinstance(mother, np.ndarray), "mother must be a 1D array"
+    assert mother.ndim == 1, "mother must be a 1D array"
+    
+    arraylikes = (list, tuple, np.ndarray)
+    if isinstance(lens_waves, arraylikes):
+        lens_waves = np.array(lens_waves, dtype=int)
+        if lens_windows is None:
+            lens_windows = lens_waves
+        if isinstance(lens_windows, int):
+            lens_windows = np.array([lens_windows] * len(lens_waves), dtype=int)
+        if isinstance(lens_windows, arraylikes):
+            assert len(lens_waves) == len(lens_windows), "lens_waves and lens_windows must have the same length"
+            lens_windows = np.array(lens_windows, dtype=int)
+        else:
+            raise ValueError("lens_windows must be an int or an array-like")
+    elif isinstance(lens_waves, int):
+        if lens_windows is None:
+            lens_windows = lens_waves
+        if isinstance(lens_windows, int):
+            lens_waves = np.array([lens_waves], dtype=int)
+            lens_windows = np.array([lens_windows], dtype=int)
+        if isinstance(lens_windows, arraylikes):
+            lens_waves = np.array([lens_waves] * len(lens_windows), dtype=int)
+            lens_windows = np.array(lens_windows, dtype=int)
+        else:
+            raise ValueError("lens_windows must be an int or an array-like")
+    else:
+        raise ValueError("lens_waves must be an int or an array-like")
+
+
+    x_mother = np.linspace(start=0, stop=1, num=len(mother), endpoint=True) - 0.5
+
+    interpolator = scipy.interpolate.interp1d(
+        x=x_mother,
+        y=mother, 
+        kind=interp_kind, 
+        fill_value=fill_value, 
+        bounds_error=False, 
+        assume_sorted=True,
+    )
+
+    waves = []
+    xs = []
+    for i_wave, (l_wave, l_window) in enumerate(zip(lens_waves, lens_windows)):
+        x_wave = (np.linspace(start=0, stop=1, num=l_window, endpoint=True) - 0.5) * (l_window / l_wave)
+        wave = interpolator(x_wave)
+        waves.append(wave)
+        xs.append(x_wave)
+
+    return waves, xs
+
 
 def torch_hilbert(x, N=None, dim=0):
     """
@@ -132,6 +235,7 @@ def make_VQT_filters(
     F_max=400,
     n_freq_bins=55,
     win_size=501,
+    window_type='gaussian',
     symmetry='center',
     taper_asymmetric=True,
     plot_pref=False
@@ -161,6 +265,13 @@ def make_VQT_filters(
             Number of frequency bins to use.
         win_size (int):
             Size of the window to use, in samples.
+        window_type (str, np.ndarray, list, tuple):
+            Window to use for the mother wavelet. \n
+                * If string: Will be passed to scipy.signal.windows.get_window.
+                  See that documentation for options. Except for 'gaussian',
+                  which you should just pass the string 'gaussian' without any
+                  other arguments.
+                * If array-like: Will be used as the window directly.
         symmetry (str):
             Whether to use a symmetric window or a single-sided window.
             - 'center': Use a symmetric / centered / 'two-sided' window.
@@ -182,8 +293,7 @@ def make_VQT_filters(
         freqs (Torch array):
             Array of frequencies corresponding to the filters.
         wins (Torch ndarray):
-            Array of window functions (gaussians)
-             corresponding to each filter.
+            Array of window functions corresponding to each filter. \n
             shape: (n_freq_bins, win_size)
     """
 
@@ -202,19 +312,34 @@ def make_VQT_filters(
     periods = 1 / freqs
     periods_inSamples = Fs_sample * periods
 
-    ## Make sigmas for gaussian windows. Use a geometric spacing.
-    sigma_all = np.geomspace(
-        start=Q_lowF,
-        stop=Q_highF,
-        num=n_freq_bins,
-        endpoint=True,
-        dtype=np.float32,
-    )
-    sigma_all = sigma_all * periods_inSamples / 4
-
     ## Make windows
-    ### Make windows gaussian
-    wins = torch.stack([gaussian(torch.arange(-win_size//2, win_size//2), 0, sig=sigma) for sigma in sigma_all])
+    if isinstance(window_type, str):
+        ## Handle gaussian windows separately
+        scales = np.geomspace(
+            start=Q_lowF,
+            stop=Q_highF,
+            num=n_freq_bins,
+            endpoint=True,
+            dtype=np.float32,
+        ) * periods_inSamples
+        if window_type == 'gaussian':
+            ## Make sigmas for gaussian windows. Use a geometric spacing.
+            sigma_all = scales / 4
+            wins = torch.stack([gaussian(torch.arange(-win_size//2, win_size//2), 0, sig=sigma) for sigma in sigma_all])
+        else:
+            ### Make mother wave
+            resolution = 10000
+            mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=resolution, fftbins=False)
+            
+            wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
+            wins = torch.tensor(np.stack(wins, axis=0), dtype=torch.float32)
+
+    elif isinstance(window_type, (np.ndarray, list, tuple)):
+        mother_wave = np.array(window_type, dtype=np.float32)
+    else:
+        raise ValueError("window_type must be a string or an array-like")
+
+        
     ### Make windows symmetric or asymmetric
     if symmetry=='center':
         pass
@@ -231,12 +356,11 @@ def make_VQT_filters(
         if taper_asymmetric:
             wins[:, win_size//2] = wins[:, win_size//2] * 0.5
 
-
     filts = torch.stack([torch.cos(torch.linspace(-np.pi, np.pi, win_size) * freq * (win_size/Fs_sample)) * win for freq, win in zip(freqs, wins)], dim=0)    
     filts_complex = torch_hilbert(filts.T, dim=0).T
-
     ## Normalize filters to have unit magnitude
     filts_complex = filts_complex / torch.sum(torch.abs(filts_complex), dim=1, keepdims=True)
+    # filts_complex = filts_complex / torch.linalg.norm(filts_complex, dim=1, keepdim=True)
     
     ## Plot
     if plot_pref:
@@ -251,9 +375,9 @@ def make_VQT_filters(
         plt.title('windows (gaussian)')
 
         plt.figure()
-        plt.plot(sigma_all)
+        plt.plot(scales)
         plt.xlabel('filter num')
-        plt.ylabel('window width (sigma of gaussian)')    
+        plt.ylabel('window width scales')    
 
         plt.figure()
         plt.imshow(torch.real(filts_complex) / torch.max(torch.real(filts_complex), 1, keepdims=True)[0], aspect='auto', cmap='bwr', vmin=-1, vmax=1)
