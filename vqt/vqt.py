@@ -18,11 +18,12 @@ class VQT():
         F_max=400,
         n_freq_bins=55,
         win_size=501,
+        window_type='hann',
         symmetry='center',
         taper_asymmetric=True,
         downsample_factor=4,
         padding='valid',
-        fft_conv=False,
+        fft_conv=True,
         fast_length=True,
         DEVICE_compute='cpu',
         DEVICE_return='cpu',
@@ -48,8 +49,8 @@ class VQT():
         \n
 
         Q: quality factor; roughly corresponds to the number of cycles in a
-        filter. Here, Q is the number of cycles within 4 sigma (95%) of a
-        gaussian window. \n
+        filter. Here, Q is similar to the number of cycles within 4 sigma (95%)
+        of a gaussian window. \n
 
         RH 2022-2024
 
@@ -68,6 +69,13 @@ class VQT():
                 Number of frequency bins to use.
             win_size (int):
                 Size of the window to use, in samples.
+            window_type (str, np.ndarray, list, tuple):
+                Window to use for the mother wavelet. \n
+                    * If string: Will be passed to scipy.signal.windows.get_window.
+                    See that documentation for options. Except for 'gaussian',
+                    which you should just pass the string 'gaussian' without any
+                    other arguments.
+                    * If array-like: Will be used as the window directly.
             symmetry (str):
                 Whether to use a symmetric window or a single-sided window. \n
                     * 'center': Use a symmetric / centered / 'two-sided' window.
@@ -133,6 +141,7 @@ class VQT():
                 F_max=F_max,
                 n_freq_bins=n_freq_bins,
                 win_size=win_size,
+                window_type=window_type,
                 symmetry=symmetry,
                 taper_asymmetric=taper_asymmetric,
                 plot_pref=plot_pref,
@@ -301,8 +310,8 @@ def convolve(
     arr, 
     kernels, 
     take_abs=False, 
-    fft_conv=False, 
     padding='same', 
+    fft_conv=False, 
     fast_length=False,
     DEVICE='cpu',
 ):
@@ -320,12 +329,12 @@ def convolve(
             ``shape``: (n_kernels, win_size)
         take_abs (bool):
             Whether to take the absolute value of the result.
-        fft_conv (bool):
-            Whether to use FFT convolution.
         padding (str):
             Padding mode to use: \n
                 * If fft_conv==False: ['valid', 'same'] \n
                 * If fft_conv==True: ['full', 'valid', 'same'] \n
+        fft_conv (bool):
+            Whether to use FFT convolution.
         fast_length (bool):
             Whether to use scipy.fftpack.next_fast_len to find the next fast
             length for the FFT.
