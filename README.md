@@ -2,15 +2,14 @@
 [![PyPI
 version](https://badge.fury.io/py/vqt.svg)](https://badge.fury.io/py/vqt)
 
-## Call for contributors!
-I am looking for contributors to help improve this library. If you are
-interested, please make a pull request or contact me directly.
+Contributions are welcome!
 
 ### Variable Q-Transform
 
 This is a novel python implementation of the variable Q-transform that was
 developed due to the need for a more accurate and flexible VQT for the use in
-research. <br>
+research. It is battle-tested and has been used in a number of research
+projects. <br>
 - Accuracy: The approach is different in that it is a **direct implementation**
 of a spectrogram  via a Hilbert transformation at each desired frequency. This
 results in an exact computation of the spectrogram and is appropriate for
@@ -105,8 +104,8 @@ understand, and it has fewer constraints on the input parameters compared to
     the same parameters as `librosa` to be used.
   
 - Speed:
-  - Currently, it is likely that the existing code is about as fast as it can be
-    without sacrificing accuracy, flexibility, or code clarity. All the
+  - Currently, it is likely that the existing code is close to as fast as it can
+    be without sacrificing accuracy, flexibility, or code clarity. All the
     important operations are done in PyTorch (with backends in `C` or `CUDA`).
   - Allowing for some loss in accuracy:
     - For conv1d approach: Use a strided convolution.
@@ -115,7 +114,9 @@ understand, and it has fewer constraints on the input parameters compared to
   - Non-trivial ideas that theoretically could speed things up:
     - An FFT implementation that allows for a reduced set of frequencies to be
       computed.
-    - A
+    - For the conv1d approach: Make filters different sizes to remove blank
+      space from the higher frequencies. Separate the filter bank into different
+      computation steps.
 
 
 #### Demo:
