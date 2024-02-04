@@ -40,7 +40,7 @@ setup(
     author='Richard Hakim',
     keywords=['neuroscience', 'neuroimaging', 'machine learning', 'deep learning'],
     license='LICENSE',
-    description='A library for classifying and tracking ROIs.',
+    description='Variable Q-Transform in Python and PyTorch',
     long_description=readme,
     long_description_content_type="text/markdown",
     url='https://github.com/RichieHakim/vqt',
