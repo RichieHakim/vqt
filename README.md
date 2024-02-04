@@ -20,11 +20,10 @@ artifacts in the spectrogram under certain conditions.
 libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
 intuitive.
-- Speed: The backend is written using PyTorch, and allows for GPU acceleration
-and backpropagation. In most cases it is faster than the `librosa`
-implementation, especially when using a GPU. Also, when the
-`downsample`/`hop_length` parameter is low (<32), it is as fast or faster than
-the `nnAudio` implementation.
+- Speed: The backend is written using PyTorch, and allows for GPU acceleration.
+In most cases it is faster than the `librosa` implementation, especially when
+using a GPU. Also, when the `downsample`/`hop_length` parameter is low (<32), it
+is as fast or faster than the `nnAudio` implementation.
 
 
 ### Installation
@@ -97,17 +96,17 @@ understand, and it has fewer constraints on the input parameters compared to
 #### What to improve on?
 
 - Flexibility:
-  - Window function: Currently, the window function is hard-coded to be a
-    Gaussian. This should be made flexible and should ideally include at least
-    the Hamming window.
   - `librosa` parameter mode: It would be nice to have a mode that allows for
     the same parameters as `librosa` to be used.
+  - Make `VQT` class a full `torch.nn.Module` so that it can be used in a
+    `torch.nn.Sequential` model. Ensure backpropagation works.
+  - Make `VQT` class compatible with `torch.jit.script` and `torch.jit.trace`.
   
 - Speed:
   - Currently, it is likely that the existing code is close to as fast as it can
     be without sacrificing accuracy, flexibility, or code clarity. All the
     important operations are done in PyTorch (with backends in `C` or `CUDA`).
-  - Allowing for some loss in accuracy:
+  - If we allow for some loss in accuracy:
     - For conv1d approach: Use a strided convolution.
     - For fftconv approach: Downsample using `n=n_samples_downsampled` in `ifft`
       function.
