@@ -40,7 +40,7 @@ setup(
     author='Richard Hakim',
     keywords=['neuroscience', 'neuroimaging', 'machine learning', 'deep learning'],
     license='LICENSE',
-    description='Variable Q-Transform in Python and PyTorch',
+    description='Variable Q-Transform with PyTorch backend',
     long_description=readme,
     long_description_content_type="text/markdown",
     url='https://github.com/RichieHakim/vqt',
