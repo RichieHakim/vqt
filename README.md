@@ -84,14 +84,15 @@ your needs.
 align="right"  style="margin-left: 10px"/>
 
 This function works differently than the VQT from `librosa` or `nnAudio` in that
-it does not use recursive downsampling. Instead, it uses a fixed set of filters,
-and a Hilbert transform to compute the analytic signal. It can then take the
-envelope and downsample. This results in a more accurate computation of the
-spectrogram. The tradeoff is that under certain conditions, it can be slower
-than the recursive downsampling approach, but usually not by much. The direct
-computation approach also results in code that is more flexible, easier to
-understand, and it has fewer constraints on the input parameters compared to
-`librosa` and `nnAudio`.
+it does not use the recursive downsampling algorithm from [this
+paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf).
+Instead, it uses a fixed set of filters, and a Hilbert transform to compute the
+analytic signal. It can then take the envelope and downsample. This results in a
+more accurate computation of the spectrogram. The tradeoff is that under certain
+conditions, it can be slower than the recursive downsampling approach, but
+usually not by much. The direct computation approach also results in code that
+is more flexible, easier to understand, and it has fewer constraints on the
+input parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
 
