@@ -10,20 +10,20 @@ This is a novel python implementation of the variable Q-transform that was
 developed due to the need for a more accurate and flexible VQT for the use in
 research. It is battle-tested and has been used in a number of research
 projects. <br>
-- Accuracy: The approach is different in that it is a **direct implementation**
+- **Accuracy**: The approach is different in that it is a **direct implementation**
 of a spectrogram  via a Hilbert transformation at each desired frequency. This
 results in an exact computation of the spectrogram and is appropriate for
 research applications where accuracy is critical. The implementation seen in
 `librosa` and `nnAudio` uses recursive downsampling, which can introduce
 artifacts in the spectrogram under certain conditions.
-- Flexibility: The parameters and codebase are less complex than in other
+- **Flexibility**: The parameters and codebase are less complex than in other
 libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
 intuitive.
-- Speed: The backend is written using PyTorch, and allows for GPU acceleration.
-In most cases it is faster than the `librosa` implementation, especially when
-using a GPU. Also, when the `downsample`/`hop_length` parameter is low (<32), it
-is as fast or faster than the `nnAudio` implementation.
+- **Speed**: The backend is written using PyTorch, and allows for GPU acceleration.
+It is faster than the `librosa` implementation, and roughly as fast as the
+`nnAudio` implementation. See the [Speed](#Installation) section for more
+details.
 
 
 ### Installation
@@ -86,13 +86,12 @@ align="right"  style="margin-left: 10px"/>
 This function works differently than the VQT from `librosa` or `nnAudio` in that
 it does not use the recursive downsampling algorithm from [this
 paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf).
-Instead, it uses a fixed set of filters, and a Hilbert transform to compute the
-analytic signal. It can then take the envelope and downsample. This results in a
-more accurate computation of the spectrogram. The tradeoff is that under certain
-conditions, it can be slower than the recursive downsampling approach, but
-usually not by much. The direct computation approach also results in code that
-is more flexible, easier to understand, and it has fewer constraints on the
-input parameters compared to `librosa` and `nnAudio`.
+Instead, it computes the power at each frequency using either direct- or
+FFT-convolution with a filter bank of complex oscillations, followed by a
+Hilbert transform. This results in a more accurate computation of the same
+spectrogram. The direct computation approach also results in code that is more
+flexible, easier to understand, and it has fewer constraints on the input
+parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
 
@@ -107,6 +106,10 @@ input parameters compared to `librosa` and `nnAudio`.
   - Currently, it is likely that the existing code is close to as fast as it can
     be without sacrificing accuracy, flexibility, or code clarity. All the
     important operations are done in PyTorch (with backends in `C` or `CUDA`).
+  - Recursive downsampling: Under many circumstances (like when `Q_high` is not
+    much greater than `Q_low`), recursive downsampling is fine. Implementing it
+    would be nice just for completeness ([from this
+    paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf))
   - If we allow for some loss in accuracy:
     - For conv1d approach: Use a strided convolution.
     - For fftconv approach: Downsample using `n=n_samples_downsampled` in `ifft`
@@ -130,20 +133,22 @@ import torch
 import matplotlib.pyplot as plt
 import scipy
 
-data_ecg = scipy.datasets.electrocardiogram()
+data_ecg = scipy.datasets.electrocardiogram()[:10000]
 
-transformer = vqt.VQT(
+my_vqt = vqt.VQT(
     Fs_sample=360,
-    Q_lowF=3,
-    Q_highF=20,
+    Q_lowF=2,
+    Q_highF=4,
     F_min=1,
-    F_max=180,
-    n_freq_bins=55,
+    F_max=120,
+    n_freq_bins=150,
     win_size=1501,
-    downsample_factor=8,
+    window_type='gaussian',
+    downsample_factor=4,
     padding='same',
+    fft_conv=True,
     return_complex=False,
-    plot_pref=True,
+    plot_pref=False,
     progressBar=False,
 )
 
@@ -152,9 +157,13 @@ specs, xaxis, freqs = transformer(data_ecg)
 fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, )
 axs[0].plot(data_ecg)
 axs[0].title.set_text('Electrocardiogram')
-axs[1].pcolor(xaxis, np.arange(specs[0].shape[0]), specs[0] * (freqs)[:, None])
-axs[1].set_yticks(np.arange(specs[0].shape[0])[::5], np.round(freqs[::5], 1));
-axs[1].set_xlim([43000, 48000])
+axs[1].pcolor(
+    xaxis, np.arange(specs[0].shape[0]), specs[0] * (freqs)[:, None], 
+    vmin=0, vmax=30,
+    cmap='hot',
+)
+axs[1].set_yticks(np.arange(specs[0].shape[0])[::10], np.round(freqs[::10], 1));
+axs[1].set_xlim([5000, 7500])
 axs[0].set_ylabel('mV')
 axs[1].set_ylabel('frequency (Hz)')
 axs[1].set_xlabel('time (s)')
