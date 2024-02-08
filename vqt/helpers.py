@@ -1,3 +1,5 @@
+import math
+
 import torch
 import numpy as np
 import scipy.signal
@@ -48,7 +50,7 @@ def make_batches(
         l = length
     
     if batch_size is None:
-        batch_size = np.int64(np.ceil(l / num_batches))
+        batch_size = int(math.ceil(l / num_batches))
     
     for start in range(idx_start, l, batch_size):
         end = min(start + batch_size, l)
@@ -332,7 +334,7 @@ def make_VQT_filters(
             mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=resolution, fftbins=False)
             
             wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
-            wins = torch.tensor(np.stack(wins, axis=0), dtype=torch.float32)
+            wins = torch.as_tensor(np.stack(wins, axis=0), dtype=torch.float32)
 
     elif isinstance(window_type, (np.ndarray, list, tuple)):
         mother_wave = np.array(window_type, dtype=np.float32)
@@ -361,6 +363,8 @@ def make_VQT_filters(
     ## Normalize filters to have unit magnitude
     filts_complex = filts_complex / torch.linalg.norm(filts_complex, ord=2, dim=1, keepdim=True)
     
+    freqs = torch.as_tensor(freqs, dtype=torch.float32)
+
     ## Plot
     if plot_pref:
         plt.figure()
