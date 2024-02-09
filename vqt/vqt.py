@@ -425,14 +425,9 @@ def fftconvolve(
     n_original = x.shape[-1] + y.shape[-1] - 1
     # n = scipy.fftpack.next_fast_len(n_original) if fast_length else n_original
     n = next_fast_len(n_original) if fast_length else n_original
-    n = n_original
-    
-    if x.is_complex() == False and y.is_complex() == False:
-        f = torch.fft.rfft(x, n=n, dim=-1) * torch.fft.fft(y, n=n, dim=-1)
-        fftconv_xy = torch.fft.irfft(f, n=n, dim=-1)
-    else:
-        f = torch.fft.fft(x, n=n, dim=-1) * torch.fft.fft(y, n=n, dim=-1)
-        fftconv_xy = torch.fft.ifft(f, n=n, dim=-1)
+    # n = n_original
+    f = torch.fft.fft(x, n=n, dim=-1) * torch.fft.fft(y, n=n, dim=-1)
+    fftconv_xy = torch.fft.ifft(f, n=n, dim=-1)
     return apply_padding_mode(
         conv_result=fftconv_xy,
         x_length=x.shape[-1],
