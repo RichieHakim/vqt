@@ -10,20 +10,20 @@ This is a novel python implementation of the variable Q-transform that was
 developed due to the need for a more accurate and flexible VQT for the use in
 research. It is battle-tested and has been used in a number of research
 projects. <br>
-- **Accuracy**: The approach is different in that it is a **direct implementation**
-of a spectrogram  via a Hilbert transformation at each desired frequency. This
-results in an exact computation of the spectrogram and is appropriate for
-research applications where accuracy is critical. The implementation seen in
-`librosa` and `nnAudio` uses recursive downsampling, which can introduce
-artifacts in the spectrogram under certain conditions.
+- **Accuracy**: The approach is different in that it is a **direct
+implementation** of a spectrogram  via a Hilbert transformation at each desired
+frequency. This results in an exact computation of the spectrogram and is
+appropriate for research applications where accuracy is critical. The
+implementation seen in `librosa` and `nnAudio` uses recursive downsampling,
+which can introduce artifacts in the spectrogram under certain conditions.
 - **Flexibility**: The parameters and codebase are less complex than in other
 libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
 intuitive.
-- **Speed**: The backend is written using PyTorch, and allows for GPU acceleration.
-It is faster than the `librosa` implementation, and roughly as fast as the
-`nnAudio` implementation. See the [Speed](#Installation) section for more
-details.
+- **Speed**: The backend is written using PyTorch, and allows for GPU
+acceleration. It is faster than the `librosa` implementation, and roughly as
+fast as the `nnAudio` implementation. See the [Speed](#Installation) section for
+more details.
 
 
 ### Installation
@@ -103,9 +103,13 @@ parameters compared to `librosa` and `nnAudio`.
   - Make `VQT` class compatible with `torch.jit.script` and `torch.jit.trace`.
   
 - Speed:
-  - Currently, it is likely that the existing code is close to as fast as it can
-    be without sacrificing accuracy, flexibility, or code clarity. All the
-    important operations are done in PyTorch (with backends in `C` or `CUDA`).
+  - Currently, I would guess that it is possible to squeeze maybe another 5x
+    speedup by implementing a smarter fft_convolution approach. The sparse
+    nature of the filters within the Fourier domain is exploited in the
+    recursive downsampling approach; a direct approach where only the non-zero
+    frequencies are computed should get us close to a theoretically optimal
+    lossless approach. I've tried simply using sparse arrays for the filter bank
+    in the Fourier domain, but it didn't pan out.
   - Recursive downsampling: Under many circumstances (like when `Q_high` is not
     much greater than `Q_low`), recursive downsampling is fine. Implementing it
     would be nice just for completeness ([from this
