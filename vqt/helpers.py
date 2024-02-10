@@ -1,4 +1,5 @@
 import math
+from typing import Union, List, Tuple, Dict, Any, Optional, Sequence, Iterable
 
 import torch
 import numpy as np
@@ -230,25 +231,24 @@ def torch_hilbert(x, N=None, dim=0):
 
 
 def make_VQT_filters(    
-    Fs_sample=1000,
-    Q_lowF=3,
-    Q_highF=20,
-    F_min=10,
-    F_max=400,
-    n_freq_bins=55,
-    win_size=501,
-    window_type='gaussian',
-    symmetry='center',
-    taper_asymmetric=True,
-    plot_pref=False
+    Fs_sample: int=1000,
+    Q_lowF: int=3,
+    Q_highF: int=20,
+    F_min: int=10,
+    F_max: int=400,
+    n_freq_bins: int=55,
+    win_size: Optional[int]=None,
+    window_type: Union[str, np.ndarray, list, tuple]='gaussian',
+    symmetry: str='center',
+    taper_asymmetric: bool=True,
+    mother_resolution: int=10000,
+    plot_pref: bool=False,
 ):
     """
-    Creates a set of filters for use in the VQT algorithm.
-
-    Set Q_lowF and Q_highF to be the same value for a 
-     Constant Q Transform (CQT) filter set.
-    Varying these values will varying the Q factor 
-     logarithmically across the frequency range.
+    Creates a set of filters for use in the VQT algorithm. \n
+    Set Q_lowF and Q_highF to be the same value for a Constant Q Transform (CQT)
+    filter set. Varying these values will varying the Q factor logarithmically
+    across the frequency range. \n
 
     RH 2022
 
@@ -265,15 +265,17 @@ def make_VQT_filters(
             Highest frequency to use (inclusive).
         n_freq_bins (int):
             Number of frequency bins to use.
-        win_size (int):
-            Size of the window to use, in samples.
+        win_size (int, None):
+            Size of the window to use, in samples. \n
+            If None, will be set to the next odd number after Q_lowF * Fs_sample.
         window_type (str, np.ndarray, list, tuple):
-            Window to use for the mother wavelet. \n
+            Window type to use. \n
                 * If string: Will be passed to scipy.signal.windows.get_window.
                   See that documentation for options. Except for 'gaussian',
                   which you should just pass the string 'gaussian' without any
                   other arguments.
-                * If array-like: Will be used as the window directly.
+                * If array-like: Will directly be used as the window for the low
+                  frequency wavelet and will be scaled for higher frequencies.
         symmetry (str):
             Whether to use a symmetric window or a single-sided window.
             - 'center': Use a symmetric / centered / 'two-sided' window.
@@ -282,9 +284,11 @@ def make_VQT_filters(
             - 'right': Use a one-sided, right-half window. Only right half of the
             filter will be nonzero.
         taper_asymmetric (bool):
-            Only used if symmetry is not 'center'.
+            Only used if symmetry is not 'center'. \n
             Whether to taper the center of the window by multiplying center
             sample of window by 0.5.
+        mother_resolution (int):
+            Resolution of the mother wavelet. Should be a large integer.
         plot_pref (bool):
             Whether to plot the filters.
 
@@ -314,6 +318,12 @@ def make_VQT_filters(
     periods = 1 / freqs
     periods_inSamples = Fs_sample * periods
 
+    if win_size is None:
+        win_size = int(np.ceil(Q_lowF * Fs_sample))
+        ## Make sure win_size is odd
+        if win_size % 2 != 1:
+            win_size += 1
+
     ## Make windows
     if isinstance(window_type, str):
         ## Handle gaussian windows separately
@@ -326,15 +336,13 @@ def make_VQT_filters(
         ) * periods_inSamples
         if window_type == 'gaussian':
             ## Make sigmas for gaussian windows. Use a geometric spacing.
-            sigma_all = scales / 4
-            wins = torch.stack([gaussian(torch.arange(-win_size//2, win_size//2), 0, sig=sigma) for sigma in sigma_all])
-        else:
-            ### Make mother wave
-            resolution = 10000
-            mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=resolution, fftbins=False)
-            
-            wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
-            wins = torch.as_tensor(np.stack(wins, axis=0), dtype=torch.float32)
+            window_type = ('gaussian', mother_resolution * 0.15)
+        # else:
+        ### Make mother wave
+        mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=mother_resolution, fftbins=False)
+        
+        wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
+        wins = torch.as_tensor(np.stack(wins, axis=0), dtype=torch.float32)
 
     elif isinstance(window_type, (np.ndarray, list, tuple)):
         mother_wave = np.array(window_type, dtype=np.float32)

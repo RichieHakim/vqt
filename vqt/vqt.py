@@ -17,7 +17,7 @@ class VQT(torch.nn.Module):
         F_min: Union[int, float]=1,
         F_max: Union[int, float]=400,
         n_freq_bins: int=50,
-        win_size: int=501,
+        win_size: Optional[int]=None,
         window_type: Union[str, torch.Tensor]='gaussian',
         symmetry: str='center',
         taper_asymmetric: bool=True,
@@ -63,8 +63,9 @@ class VQT(torch.nn.Module):
                 Highest frequency to use.
             n_freq_bins (int):
                 Number of frequency bins to use.
-            win_size (int):
-                Size of the window to use, in samples.
+            win_size (int, None):
+                Size of the window to use, in samples. \n
+                If None, will be set to the next odd number after Q_lowF * Fs_sample.
             window_type (str, np.ndarray, list, tuple):
                 Window to use for the mother wavelet. \n
                     * If string: Will be passed to scipy.signal.windows.get_window.
@@ -86,9 +87,8 @@ class VQT(torch.nn.Module):
                 0.5.
             downsample_factor (int):
                 Factor to downsample the signal by. If the length of the input
-                signal is not
-                 divisible by downsample_factor, the signal will be zero-padded
-                 at the end so that it is.
+                signal is not divisible by downsample_factor, the signal will be
+                zero-padded at the end so that it is.
             padding (str):
                 Padding mode to use: \n
                     * If fft_conv==False: ['valid', 'same'] \n
@@ -134,6 +134,9 @@ class VQT(torch.nn.Module):
                 taper_asymmetric=taper_asymmetric,
                 plot_pref=plot_pref,
             )
+        
+        ## Get win_size from filters
+        win_size = self.filters.shape[-1]
 
         ## Make filters the parameters of the model
         self.filters = torch.nn.Parameter(self.filters, requires_grad=False)
