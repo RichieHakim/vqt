@@ -22,7 +22,7 @@ jobs:
 
             - name: Prepare git branch
               run: |
-                git checkout dev
+                git checkout master
                 git pull
                 
             - name: Increment version
