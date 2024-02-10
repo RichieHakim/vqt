@@ -65,7 +65,7 @@ class VQT(torch.nn.Module):
                 Number of frequency bins to use.
             win_size (int, None):
                 Size of the window to use, in samples. \n
-                If None, will be set to the next odd number after Q_lowF * Fs_sample.
+                If None, will be set to the next odd number after Q_lowF * (Fs_sample / F_min).
             window_type (str, np.ndarray, list, tuple):
                 Window to use for the mother wavelet. \n
                     * If string: Will be passed to scipy.signal.windows.get_window.

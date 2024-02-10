@@ -19,7 +19,7 @@ params_vqt = {
     'F_min': 10, 
     'F_max': 400, 
     'n_freq_bins': 55, 
-    'win_size': 501,
+    'win_size': None,
     'symmetry': 'center',
     'taper_asymmetric': True,
     'downsample_factor': 4,
@@ -81,7 +81,6 @@ def test_peak_in_spectrogram_at_sine_wave_frequency(
     frequency_nearest = freqs_tensor[idx_nearest]
     # print(frequency, frequency_nearest.item(), peak_frequency.item(), peak_index.item(), idx_nearest.item())
     # Verify that the peak corresponds to the sine wave's frequency
-    frequency_tolerance = params['Fs_sample'] / params['win_size']  # Approximate resolution. 
     # assert torch.abs(peak_frequency - frequency_nearest) < frequency_tolerance, \
     #     f"Expected a peak at {frequency_nearest} Hz, found one at {peak_frequency.item()} Hz within a tolerance of {frequency_tolerance} Hz."
     assert np.abs(peak_index.item() - idx_nearest.item()) <= 1, \
@@ -105,7 +104,7 @@ def test_constant_signal_transformation():
     F_min=st.floats(min_value=1, max_value=1000),
     F_max=st.floats(min_value=1, max_value=1000),
     n_freq_bins=st.integers(min_value=1, max_value=100),
-    win_size=st.integers(min_value=1, max_value=1000),
+    win_size=st.integers(min_value=1, max_value=1000) | st.none(),
     symmetry=st.sampled_from(['center', 'left', 'right']),
     taper_asymmetric=st.booleans(),
     downsample_factor=st.integers(min_value=1, max_value=100),
@@ -155,7 +154,8 @@ def test_vqt_params(
     v = vqt.VQT(**params)
 
     # Make signal
-    input_signal = torch.rand(n_channels, params['win_size'] + np.random.randint(1, 1000), dtype=torch.float32)
+    len_signal = params['win_size'] if params['win_size'] is not None else int(params['Q_lowF'] * params['Fs_sample'])
+    input_signal = torch.rand(n_channels, len_signal + np.random.randint(1, 1000), dtype=torch.float32)
     if n_dim == 1:
         input_signal = input_signal[0]
     # Apply the VQT to this signal
@@ -190,7 +190,10 @@ def test_vqt_filters():
     ## Filters, freqs, and wins should all have the following properties:
     ### They are not all zeros, not all ones, and do not contain NaNs or infinities
     ### Filters should additionally have shape (n_freq_bins, win_size)
-    assert filters.shape == (params['n_freq_bins'], params['win_size']), "VQT filters have an unexpected shape"
+    if params['win_size'] is not None:
+        assert filters.shape == (params['n_freq_bins'], params['win_size']), "VQT filters have an unexpected shape"
+    else:
+        assert filters.shape[0] == params['n_freq_bins'], "VQT filters have an unexpected shape"
     fns = {
         'not_all_zeros': lambda x: ~np.all(x == 0),
         'not_all_ones': lambda x: ~np.all(x == 1),
