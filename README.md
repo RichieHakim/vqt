@@ -103,28 +103,29 @@ parameters compared to `librosa` and `nnAudio`.
   - Make `VQT` class compatible with `torch.jit.script` and `torch.jit.trace`.
   
 - Speed:
-  - Currently, I would guess that it is possible to squeeze maybe another 5x
-    speedup by implementing a smarter fft_convolution approach. The sparse
-    nature of the filters within the Fourier domain is exploited in the
-    recursive downsampling approach; a direct approach where only the non-zero
-    frequencies are computed should get us close to a theoretically optimal
-    lossless approach. I've tried simply using sparse arrays for the filter bank
-    in the Fourier domain, but it didn't pan out.
-  - Recursive downsampling: Under many circumstances (like when `Q_high` is not
-    much greater than `Q_low`), recursive downsampling is fine. Implementing it
-    would be nice just for completeness ([from this
-    paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf))
-  - If we allow for some loss in accuracy:
+  - **Lossless approaches**:
+    - For the `fft_conv` approach: I would guess that it is possible to squeeze
+      maybe another 5x speedup by implementing a smarter fft_convolution
+      approach. For example, the sparse nature of the filters within the Fourier
+      domain is exploited in the recursive downsampling approach; so a direct
+      approach where only the non-zero frequencies are computed should get us
+      closer to a theoretically optimal lossless approach. I've tried simply
+      using sparse arrays for the filter bank in the Fourier domain, and it
+      yielded a roughly 2x speedup, but the code was not very pretty or safe.
+    - For the `conv1d` approach: I think it would be much faster if we cropped
+      the filters to remove the blank space from the higher frequency filters.
+      This would be pretty easy to implement and could give a >10x speedup.
+  - **Lossy approaches**:
+    - Recursive downsampling: Under many circumstances (like when `Q_high` is
+      not much greater than `Q_low`), recursive downsampling is fine.
+      Implementing it would be nice just for completeness ([from this
+      paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf))
     - For conv1d approach: Use a strided convolution.
     - For fftconv approach: Downsample using `n=n_samples_downsampled` in `ifft`
       function.
   - Non-trivial ideas that theoretically could speed things up:
     - An FFT implementation that allows for a reduced set of frequencies to be
       computed.
-    - For the conv1d approach: Make filters different sizes to remove blank
-      space from the higher frequencies. Separate the filter bank into different
-      computation steps.
-
 
 #### Demo:
 <img src="docs/media/example_ECG.png" alt="ECG" width="500"  align="right"
@@ -137,37 +138,39 @@ import torch
 import matplotlib.pyplot as plt
 import scipy
 
-data_ecg = scipy.datasets.electrocardiogram()[:10000]
+data_ecg = torch.as_tensor(scipy.datasets.electrocardiogram()[:10000])
+sample_rate = 360
 
 my_vqt = vqt.VQT(
-    Fs_sample=360,
+    Fs_sample=sample_rate,
     Q_lowF=2,
-    Q_highF=4,
+    Q_highF=8,
     F_min=1,
     F_max=120,
     n_freq_bins=150,
     win_size=1501,
     window_type='gaussian',
-    downsample_factor=4,
+    downsample_factor=8,
     padding='same',
     fft_conv=True,
-    return_complex=False,
+    take_abs=True,
     plot_pref=False,
-    progressBar=False,
 )
 
-specs, xaxis, freqs = transformer(data_ecg)
+specs, xaxis, freqs = my_vqt(data_ecg)
 
 fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, )
-axs[0].plot(data_ecg)
+axs[0].plot(np.arange(data_ecg.shape[0]) / sample_rate, data_ecg)
 axs[0].title.set_text('Electrocardiogram')
 axs[1].pcolor(
-    xaxis, np.arange(specs[0].shape[0]), specs[0] * (freqs)[:, None], 
-    vmin=0, vmax=30,
+    xaxis / sample_rate, 
+    np.arange(specs[0].shape[0]), specs[0] * (freqs)[:, None], 
+    vmin=0, 
+    vmax=30,
     cmap='hot',
 )
-axs[1].set_yticks(np.arange(specs[0].shape[0])[::10], np.round(freqs[::10], 1));
-axs[1].set_xlim([5000, 7500])
+axs[1].set_yticks(np.arange(specs.numpy()[0].shape[0])[::10], np.round(freqs.numpy()[::10], 1));
+axs[1].set_xlim([13, 22])
 axs[0].set_ylabel('mV')
 axs[1].set_ylabel('frequency (Hz)')
 axs[1].set_xlabel('time (s)')
