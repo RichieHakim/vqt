@@ -1,4 +1,5 @@
 import copy
+import math
 
 import torch
 import numpy as np
@@ -134,6 +135,11 @@ def test_vqt_params(
     n_channels,
     n_dim,
 ):
+    ## Clip win_size to be at most 1001 and just set it 
+    if win_size is not None:
+        win_size = min(win_size, 1001)
+    else:
+        win_size = min(int(math.ceil(Q_lowF * (Fs_sample / F_min))), 1001)
     params = {
         'Fs_sample': Fs_sample,
         'Q_lowF': Q_lowF,
