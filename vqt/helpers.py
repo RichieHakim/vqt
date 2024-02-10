@@ -323,6 +323,7 @@ def make_VQT_filters(
         ## Make sure win_size is odd
         if win_size % 2 != 1:
             win_size += 1
+        win_size = 3 if win_size < 3 else win_size
 
     ## Make windows
     if isinstance(window_type, str):
@@ -334,6 +335,7 @@ def make_VQT_filters(
             endpoint=True,
             dtype=np.float32,
         ) * periods_inSamples
+        scales = np.clip(scales, a_min=1, a_max=None)
         if window_type == 'gaussian':
             ## Make sigmas for gaussian windows. Use a geometric spacing.
             window_type = ('gaussian', mother_resolution * 0.15)
