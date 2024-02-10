@@ -2,7 +2,7 @@
 [![PyPI
 version](https://badge.fury.io/py/vqt.svg)](https://badge.fury.io/py/vqt)
 
-Contributions are welcome!
+Contributions are welcome! Feel free to open an issue or a pull request.
 
 ### Variable Q-Transform
 
@@ -21,9 +21,9 @@ libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
 intuitive.
 - **Speed**: The backend is written using PyTorch, and allows for GPU
-acceleration. It is faster than the `librosa` implementation, and roughly as
-fast as the `nnAudio` implementation. See the [Speed](#Installation) section for
-more details.
+acceleration. It is faster than the `librosa` implementation under most cases,
+and roughly as fast as the `nnAudio` implementation. See below section 'What to
+improve on?' for more details on how to speed it up further.
 
 
 ### Installation
@@ -94,6 +94,7 @@ flexible, easier to understand, and it has fewer constraints on the input
 parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
+Contributions are welcome! Feel free to open an issue or a pull request.
 
 - Flexibility:
   - `librosa` parameter mode: It would be nice to have a mode that allows for
