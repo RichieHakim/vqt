@@ -243,14 +243,11 @@ class VQT(torch.nn.Module):
         if self.using_custom_filters:
             return f"VQT with custom filters"
         else:
-            # return f"VQT object with parameters: {''.join([f'{k}={getattr(self, k)}, ' for k, v in self.__dict__.items() if k not in ['filters', 'freqs', 'wins']])[:-2]}"
-            ## Below lines are because torch.jit.script doesn't allow comprehension if statements
             attributes_to_print = []
             for k, v in self.__dict__.items():
-                if k not in ['filters', 'freqs', 'wins']:
+                if (k not in ['filters', 'freqs', 'wins']) and (not k.startswith('_')) and (not callable(v)):
                     attributes_to_print.append(k)
-            return f"VQT object with parameters: {''.join([f'{k}={getattr(self, k)}, ' for k in attributes_to_print])[:-2]}"
-            
+            return f"VQT object with parameters: {''.join([f'{k}={getattr(self, k)}, ' for k in attributes_to_print])[:-2]}"            
         
 
 def downsample(
