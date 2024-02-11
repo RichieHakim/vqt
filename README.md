@@ -21,9 +21,11 @@ libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
 intuitive.
 - **Speed**: The backend is written using PyTorch, and allows for GPU
-acceleration. It is faster than the `librosa` implementation under most cases,
-and roughly as fast as the `nnAudio` implementation. See below section 'What to
-improve on?' for more details on how to speed it up further.
+acceleration. It is faster than the `librosa` implementation under most cases.
+Though it is typically a bit slower (1X-8X) than the `nnAudio` implementation,
+however under some conditions (low hop_length), it is as fast or faster. See
+below section 'What to improve on?' for more details on how to speed it up
+further.
 
 
 ### Installation
@@ -103,7 +105,7 @@ Contributions are welcome! Feel free to open an issue or a pull request.
     `torch.nn.Sequential` model. Ensure backpropagation works.
   - Make `VQT` class compatible with `torch.jit.script` and `torch.jit.trace`.
   
-- Speed:
+- Speed / Memory usage:
   - **Lossless approaches**:
     - For the `fft_conv` approach: I believe a massive (5-100x) speedup is
       possible using a sparse or non-uniform FFT. A direct approach where only
