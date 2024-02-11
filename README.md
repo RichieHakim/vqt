@@ -105,14 +105,12 @@ Contributions are welcome! Feel free to open an issue or a pull request.
   
 - Speed:
   - **Lossless approaches**:
-    - For the `fft_conv` approach: I would guess that it is possible to squeeze
-      maybe another 5x speedup by implementing a smarter fft_convolution
-      approach. For example, the sparse nature of the filters within the Fourier
-      domain is exploited in the recursive downsampling approach; so a direct
-      approach where only the non-zero frequencies are computed should get us
-      closer to a theoretically optimal lossless approach. I've tried simply
-      using sparse arrays for the filter bank in the Fourier domain, and it
-      yielded a roughly 2x speedup, but the code was not very pretty or safe.
+    - For the `fft_conv` approach: I believe a massive (5-100x) speedup is
+      possible using a sparse or non-uniform FFT. A direct approach where only
+      the non-zero frequencies are computed in the `fft`, product, and `ifft`
+      should get us closer to a theoretically optimal lossless approach. There
+      is an implmentation of the NUFFT in PyTorch
+      [here](https://github.com/mmuckley/torchkbnufft).
     - For the `conv1d` approach: I think it would be much faster if we cropped
       the filters to remove the blank space from the higher frequency filters.
       This would be pretty easy to implement and could give a >10x speedup.
