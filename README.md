@@ -19,7 +19,8 @@ which can introduce artifacts in the spectrogram under certain conditions.
 - **Flexibility**: The parameters and codebase are less complex than in other
 libraries, and the filter bank is fully customizable and exposed to the user.
 Built in plotting of the filter bank makes tuning the parameters easy and
-intuitive.
+intuitive. The main class is a PyTorch Module and the gradient function is
+maintained, so backpropagation is possible.
 - **Speed**: The backend is written using PyTorch, and allows for GPU
 acceleration. It is faster than the `librosa` implementation under most cases.
 Though it is typically a bit slower (1X-8X) than the `nnAudio` implementation,
@@ -90,10 +91,10 @@ it does not use the recursive downsampling algorithm from [this
 paper](http://academics.wellesley.edu/Physics/brown/pubs/effalgV92P2698-P2701.pdf).
 Instead, it computes the power at each frequency using either direct- or
 FFT-convolution with a filter bank of complex oscillations, followed by a
-Hilbert transform. This results in a more accurate computation of the same
-spectrogram. The direct computation approach also results in code that is more
-flexible, easier to understand, and it has fewer constraints on the input
-parameters compared to `librosa` and `nnAudio`.
+Hilbert transform. This results in a **more accurate** computation of the same
+spectrogram without any artifacts. The direct computation approach also results
+in code that is more flexible, easier to understand, and it has fewer
+constraints on the input parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
 Contributions are welcome! Feel free to open an issue or a pull request.
@@ -101,17 +102,14 @@ Contributions are welcome! Feel free to open an issue or a pull request.
 - Flexibility:
   - `librosa` parameter mode: It would be nice to have a mode that allows for
     the same parameters as `librosa` to be used.
-  - Make `VQT` class a full `torch.nn.Module` so that it can be used in a
-    `torch.nn.Sequential` model. Ensure backpropagation works.
-  - Make `VQT` class compatible with `torch.jit.script` and `torch.jit.trace`.
   
 - Speed / Memory usage:
   - **Lossless approaches**:
-    - For the `fft_conv` approach: I believe a massive (5-100x) speedup is
-      possible using a sparse or non-uniform FFT. A direct approach where only
-      the non-zero frequencies are computed in the `fft`, product, and `ifft`
-      should get us closer to a theoretically optimal lossless approach. There
-      is an implmentation of the NUFFT in PyTorch
+    - For the `fft_conv` approach: I believe a large (5-100x) speedup is
+      possible using a sparse or non-uniform FFT. An approach where only the
+      non-zero frequencies are computed in the `fft`, product, and `ifft` should
+      get us closer to a theoretically optimal lossless approach. There is an
+      implmentation of the NUFFT in PyTorch
       [here](https://github.com/mmuckley/torchkbnufft).
     - For the `conv1d` approach: I think it would be much faster if we cropped
       the filters to remove the blank space from the higher frequency filters.
