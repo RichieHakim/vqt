@@ -116,20 +116,26 @@ Contributions are welcome! Feel free to open an issue or a pull request.
   
 - Speed / Memory usage:
   - **Lossless approaches**:
-    - For the `fft_conv` approach: I believe a large (5-100x) speedup is
-      possible using an efficient sparse or non-uniform FFT. An approach where
-      only the non-zero frequencies are computed in the `fft`, product, and
-      `ifft` should get us closer to a theoretically optimal lossless approach.
-      There is an implmentation of the NUFFT in PyTorch
-      [here](https://github.com/mmuckley/torchkbnufft).
-    - Similar to above, a log-frequency iFFT could be used to allow for only the 
-      non-zero segment of the filter's spectrum to be used in the convolution.
-    - For the `fft_conv` approach: Use a more efficient convolution algorithm
-      (like the overlap-add method).
     - For the `conv1d` approach: I think it would be much faster if we cropped
       the filters to remove the blank space from the higher frequency filters.
       This would be pretty easy to implement and could give a >10x speedup.
   - **Lossy approaches**:
+    - For the `fft_conv` approach: I believe a large (5-50x) speedup is
+      possible. The lower frequency filters use only a small portion of the
+      spectrum, therefore most of the compute is spent multiplying zeros.
+      - Idea 1: Separate out filters in the filter bank whose spectra are all
+        zeros above `n_samples_downsampled`, crop the spectra above that level,
+        then use `ifft` with `n=n_samples_downsampled` to downsample the filter.
+        This would allow for a much faster convolution. For filters that can't
+        be cropped, downsampling would have to be done after the iFFT.
+      - Idea 2: using an efficient sparse or non-uniform FFT. An approach where
+        only the non-zero frequencies are computed in the `fft`, product, and
+        `ifft`. There is an implmentation of the NUFFT in PyTorch
+        [here](https://github.com/mmuckley/torchkbnufft).
+      - Idea 3: Similar to above, a log-frequency iFFT could be used to allow
+        for only the non-zero segment of the filter's spectrum to be used in the
+        convolution.
+      - Idea 4: Try using the overlap-add method.
     - Recursive downsampling: Under many circumstances (like when `Q_high` is
       not much greater than `Q_low`), recursive downsampling is fine.
       Implementing it would be nice just for completeness ([from this
