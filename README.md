@@ -1,4 +1,4 @@
-## VQT: Variable Q-Transform
+# VQT: Variable Q-Transform
 [![PyPI
 version](https://badge.fury.io/py/vqt.svg)](https://badge.fury.io/py/vqt)
 
@@ -7,7 +7,7 @@ Contributions are welcome! Feel free to open an issue or a pull request.
 ### Variable Q-Transform
 
 This is a novel python implementation of the variable Q-transform that was
-developed due to the need for a more accurate and flexible VQT for the use in
+developed due to the need for a more accurate and flexible VQT for use in
 research. It is battle-tested and has been used in a number of research
 projects. <br>
 - **Accuracy**: The approach is different in that it is a **direct
@@ -29,8 +29,11 @@ below section 'What to improve on?' for more details on how to speed it up
 further.
 
 
-### Installation
-From PyPI: `pip install vqt`
+## Installation
+Using `pip`: 
+```
+pip install vqt
+```
 
 From source:
 ```
@@ -49,38 +52,50 @@ align="right"  style="margin-left: 10px"/>
 ```
 import vqt
 
-signal = X  ## numpy or torch array of shape (n_channels, n_samples)
+signal = torch.as_tensor(X)  ## torch Tensor of shape (n_channels, n_samples)
 
-transformer = vqt.VQT(
+my_vqt = vqt.VQT(
     Fs_sample=1000,  ## In Hz
     Q_lowF=3,  ## In periods per octave
     Q_highF=20,  ## In periods per octave
     F_min=10,  ## In Hz
     F_max=400,  ## In Hz
     n_freq_bins=55,  ## Number of frequency bins
-    DEVICE_compute='cpu',
-    return_complex=False,
-    filters=None,  ## Use custom filters
+    window_type='hann',
+    downsample_factor=8,  ## Reduce the output sample rate
+    fft_conv=True,  ## Use FFT convolution for speed
     plot_pref=False,  ## Can show the filter bank
 )
 
-spectrograms, x_axis, frequencies = transformer(signal)
+spectrograms, x_axis, frequencies = my_vqt(signal)
 ```
 <img src="docs/media/freqs.png" alt="freqs" width="300"  align="right"
 style="margin-left: 10px"/>
 
 #### What is the Variable Q-Transform?
 
-The Variable Q-Transform (VQT) is a time-frequency analysis tool that generates
-spectrograms, similar to the Short-time Fourier Transform (STFT). It can also be
-defined as a special case of a wavelet transform, as well as the generalization
-of the Constant Q-Transform (CQT). In fact, the VQT subsumes the CQT and STFT as
-both can be recreated using specific parameters of the VQT.
+The [Variable Q-Transform
+(VQT)](https://en.wikipedia.org/wiki/Constant-Q_transform#Variable-Q_bandwidth_calculation)
+is a time-frequency analysis tool that generates spectrograms, similar to the
+Short-time Fourier Transform (STFT). It can also be defined as a special case of
+a wavelet transform (complex Morlet), as well as the generalization of the
+[Constant Q-Transform
+(CQT)](https://en.wikipedia.org/wiki/Constant-Q_transform). In fact, the VQT
+subsumes the CQT and the STFT since both can be recreated using specific
+parameters of the VQT. <br>
+<br>
+In brief, the VQT generates a spectrogram where the frequencies are spaced
+logarithmically, and the bandwidth of the filters are tuned using two
+parameters: `Q_low` and `Q_high`, where `Q` describes the number of periods of
+the oscillatory wavelet at a particular frequency (aka the 'bandwidth'); 'low'
+refers to the lowest frequency bin, and 'high' refers to the highest frequency
+bin.
 
 #### Why use the VQT?
 
 It provides enough knobs to tune the time-frequency resolution trade-off to suit
-your needs.
+your needs. It is especially useful when time resolution is needed at lower
+frequencies.
 
 #### How exactly does this implementation differ from others?
 <img src="docs/media/freq_response.png" alt="freq_response" width="300"
@@ -98,19 +113,19 @@ constraints on the input parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
 Contributions are welcome! Feel free to open an issue or a pull request.
-
-- Flexibility:
-  - `librosa` parameter mode: It would be nice to have a mode that allows for
-    the same parameters as `librosa` to be used.
   
 - Speed / Memory usage:
   - **Lossless approaches**:
     - For the `fft_conv` approach: I believe a large (5-100x) speedup is
-      possible using a sparse or non-uniform FFT. An approach where only the
-      non-zero frequencies are computed in the `fft`, product, and `ifft` should
-      get us closer to a theoretically optimal lossless approach. There is an
-      implmentation of the NUFFT in PyTorch
+      possible using an efficient sparse or non-uniform FFT. An approach where
+      only the non-zero frequencies are computed in the `fft`, product, and
+      `ifft` should get us closer to a theoretically optimal lossless approach.
+      There is an implmentation of the NUFFT in PyTorch
       [here](https://github.com/mmuckley/torchkbnufft).
+    - Similar to above, a log-frequency iFFT could be used to allow for only the 
+      non-zero segment of the filter's spectrum to be used in the convolution.
+    - For the `fft_conv` approach: Use a more efficient convolution algorithm
+      (like the overlap-add method).
     - For the `conv1d` approach: I think it would be much faster if we cropped
       the filters to remove the blank space from the higher frequency filters.
       This would be pretty easy to implement and could give a >10x speedup.
@@ -125,6 +140,9 @@ Contributions are welcome! Feel free to open an issue or a pull request.
   - Non-trivial ideas that theoretically could speed things up:
     - An FFT implementation that allows for a reduced set of frequencies to be
       computed.
+- Flexibility:
+  - `librosa` parameter mode: It would be nice to have a mode that allows for
+    the same parameters as `librosa` to be used.
 
 #### Demo:
 <img src="docs/media/example_ECG.png" alt="ECG" width="500"  align="right"
