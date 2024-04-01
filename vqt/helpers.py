@@ -368,10 +368,10 @@ def make_VQT_filters(
         if taper_asymmetric:
             wins[:, win_size//2] = wins[:, win_size//2] * 0.5
 
-    filts = torch.stack([torch.cos(torch.linspace(-np.pi, np.pi, win_size) * freq * (win_size/Fs_sample)) * win for freq, win in zip(freqs, wins)], dim=0)    
+    filts = torch.stack([torch.cos(torch.linspace(-np.pi, np.pi, win_size) * freq * (win_size/Fs_sample)) * win for freq, win in zip(freqs, wins)], dim=0)
     filts_complex = torch_hilbert(filts.T, dim=0).T
     ## Normalize filters to have unit magnitude
-    filts_complex = filts_complex / torch.linalg.norm(filts_complex, ord=2, dim=1, keepdim=True)
+    filts_complex = filts_complex / torch.linalg.norm(filts_complex, ord=1, dim=1, keepdim=True)  ## Note: ord=1 is L1 norm. This makes the filters have unit magnitude.
     
     freqs = torch.as_tensor(freqs, dtype=torch.float32)
 

@@ -228,16 +228,34 @@ class VQT(torch.nn.Module):
             ds_factor=self.downsample_factor,
         )
 
+        return specs
+        
+    def get_freqs(self):
+        assert hasattr(self, 'freqs'), "freqs not found. This should not happen."
+        return self.freqs
+    
+    def get_xAxis(self, n_samples: int):
+        """
+        Get the x-axis for the spectrogram. \n
+        RH 2024
+
+        Args:
+            n_samples (int):
+                Number of samples in the signal.
+
+        Returns:
+            torch.Tensor:
+                x-axis for the spectrogram in units of samples.
+        """
         ## Make x_axis
         x_axis = make_conv_xAxis(
-            n_s=X.shape[-1],
+            n_s=n_samples,
             n_k=self.filters.shape[-1],
             padding=self.padding,
             downsample_factor=self.downsample_factor,
-            device=X.device,
+            device='cpu',
         )
-
-        return specs, x_axis, self.freqs
+        return x_axis
 
     def __repr__(self):
         if self.using_custom_filters:
@@ -288,10 +306,10 @@ def downsample(
     elif X.is_complex() == True:
         ## Unfortunately, torch.nn.functional.avg_pool1d does not support complex numbers. So we have to split it up into
         ##  phases and magnitudes (convert imaginary to polar, split, downsample, recombine with polar to complex conversion)
-        out = _helper_imag_to_polarReal(X).reshape(2, -1)
-        out = torch.stack([_helper_ds(out[ii], ds_factor=ds_factor) for ii in range(2)], dim=0)
-        out = _helper_polarReal_to_imag(out)
-        return out
+        X = _helper_imag_to_polarReal(X)
+        X = torch.stack([_helper_ds(X[ii], ds_factor=ds_factor) for ii in range(2)], dim=0)
+        X = _helper_polarReal_to_imag(X)
+        return X
 
     else:
         raise ValueError("X should be a torch tensor of type float or complex")
@@ -381,9 +399,8 @@ def convolve(
             out = out_conv[0]
         
     if take_abs:
-        return torch.abs(out)
-    else:
-        return out
+        out = torch.abs(out)
+    return out
 
 
 def fftconvolve(
