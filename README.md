@@ -67,7 +67,9 @@ my_vqt = vqt.VQT(
     plot_pref=False,  ## Can show the filter bank
 )
 
-spectrograms, x_axis, frequencies = my_vqt(signal)
+spectrograms = my_vqt(signal)
+x_axis = my_vqt.get_xAxis(n_samples=signal.shape[1])
+frequencies = my_vqt.get_freqs()
 ```
 <img src="docs/media/freqs.png" alt="freqs" width="300"  align="right"
 style="margin-left: 10px"/>
