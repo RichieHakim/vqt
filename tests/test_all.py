@@ -37,7 +37,7 @@ def test_zero_signal_transformation():
     params = copy.deepcopy(params_vqt) 
     v = vqt.VQT(**params)  # Create a new instance for each test case
     input_signal = torch.zeros(1024, dtype=torch.float32)  # A zero signal of length 1024
-    output, _, _ = v(input_signal)
+    output = v(input_signal)
     assert torch.all(output == 0), "VQT output for a zero signal should be zero across all frequency bins"
 
 # 2. Test Impulse Signal Transformation
@@ -46,7 +46,7 @@ def test_impulse_signal_transformation():
     v = vqt.VQT(**params)  # Create a new instance for each test case
     input_signal = torch.zeros(1024, dtype=torch.float32)
     input_signal[512] = 1  # Set the middle point to 1, creating an impulse
-    output, _, _ = v(input_signal)
+    output = v(input_signal)
     assert not torch.all(output == 0), "VQT output for an impulse signal should not be zero"
     assert output.shape[1] == v.filters.shape[0], "VQT output should have the same number of frequency bins as filters"
 
@@ -68,7 +68,8 @@ def test_peak_in_spectrogram_at_sine_wave_frequency(
     t = torch.arange(0, 1.0, 1/params['Fs_sample'], dtype=torch.float32)
     input_signal = torch.sin(2 * np.pi * frequency * t)
     # Apply the VQT to this sine wave
-    spectrogram, _, freqs = v(input_signal)
+    spectrogram = v(input_signal)
+    freqs = v.get_freqs()
     # Convert freqs to a tensor for easier handling
     freqs_tensor = torch.as_tensor(freqs, dtype=torch.float32)
     # Locate the peak in the spectrogram
@@ -92,7 +93,7 @@ def test_constant_signal_transformation():
     params = copy.deepcopy(params_vqt) 
     v = vqt.VQT(**params)  # Create a new instance for each test case
     input_signal = torch.ones(1024, dtype=torch.float32)  # A constant signal
-    output, _, _ = v(input_signal)
+    output = v(input_signal)
     # In a constant signal, the energy should be concentrated at the lowest frequency bin
     assert torch.all(output[0] > output[1:]), "VQT output for a constant signal should peak at the lowest frequency bin"
 
@@ -165,7 +166,7 @@ def test_vqt_params(
     if n_dim == 1:
         input_signal = input_signal[0]
     # Apply the VQT to this signal
-    output, _, _ = v(input_signal)
+    output = v(input_signal)
     
     # Perform validations on the output
     assert output is not None, "Output should not be None"
@@ -227,7 +228,6 @@ def test_vqt_filters():
 # Test Hilbert Transform Equivalence
 def test_hilbert_transform_equivalence():
     params = copy.deepcopy(params_vqt) 
-    v = vqt.VQT(**params)  # Create a new instance for each test case
     # Generate a random signal
     input_signal = np.random.rand(1024).astype(np.float64)  ## Implementations for fft are different between numpy and torch for float32
     # Use the VQT class's Hilbert transform
