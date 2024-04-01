@@ -180,7 +180,9 @@ my_vqt = vqt.VQT(
     plot_pref=False,
 )
 
-specs, xaxis, freqs = my_vqt(data_ecg)
+specs = my_vqt(data_ecg)
+xaxis = my_vqt.get_xAxis(n_samples=data_ecg.shape[0])
+freqs = my_vqt.get_freqs()
 
 fig, axs = plt.subplots(nrows=2, ncols=1, sharex=True, )
 axs[0].plot(np.arange(data_ecg.shape[0]) / sample_rate, data_ecg)
