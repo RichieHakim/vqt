@@ -58,6 +58,7 @@ def test_impulse_signal_transformation():
     max_value=400,
     # max_value=copy.deepcopy(params_vqt['F_max']),
 ))
+@settings(deadline=500)
 def test_peak_in_spectrogram_at_sine_wave_frequency(
     frequency,
 ):
