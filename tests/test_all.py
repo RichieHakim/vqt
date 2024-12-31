@@ -181,7 +181,7 @@ def test_vqt_params(
 def test_vqt_filters():
     params = copy.deepcopy(params_vqt) 
     # Generate the filters
-    filters, freqs, wins = vqt.helpers.make_VQT_filters(
+    filters_obj = vqt.helpers.VQT_filters(
         Fs_sample=params['Fs_sample'],
         Q_lowF=params['Q_lowF'],
         Q_highF=params['Q_highF'],
@@ -193,6 +193,7 @@ def test_vqt_filters():
         taper_asymmetric=params['taper_asymmetric'],
         plot_pref=params['plot_pref']
     )
+    filters, freqs, wins = filters_obj.make_filters()
     filters, freqs, wins = filters.numpy(), freqs.numpy(), wins.numpy()
 
     ## Filters, freqs, and wins should all have the following properties:
