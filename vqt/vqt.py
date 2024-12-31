@@ -123,7 +123,7 @@ class VQT(torch.nn.Module):
             self.filters = filters
         else:
             ## Make new filters
-            self.filters, self.freqs, self.wins = helpers.make_VQT_filters(
+            filters_obj = helpers.VQT_filters(
                 Fs_sample=Fs_sample,
                 Q_lowF=Q_lowF,
                 Q_highF=Q_highF,
@@ -136,6 +136,7 @@ class VQT(torch.nn.Module):
                 taper_asymmetric=taper_asymmetric,
                 plot_pref=plot_pref,
             )
+            self.filters, self.freqs, self.wins = filters_obj.make_filters()
         
         ## Get win_size from filters
         win_size = self.filters.shape[-1]

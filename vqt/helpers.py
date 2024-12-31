@@ -230,27 +230,14 @@ def torch_hilbert(x, N=None, dim=0):
     return torch.fft.ifft(xf * m, dim=dim)
 
 
-def make_VQT_filters(    
-    Fs_sample: int=1000,
-    Q_lowF: int=3,
-    Q_highF: int=20,
-    F_min: int=10,
-    F_max: int=400,
-    n_freq_bins: int=55,
-    win_size: Optional[int]=None,
-    window_type: Union[str, np.ndarray, list, tuple]='gaussian',
-    symmetry: str='center',
-    taper_asymmetric: bool=True,
-    mother_resolution: int=10000,
-    plot_pref: bool=False,
-):
+class VQT_filters:
     """
-    Creates a set of filters for use in the VQT algorithm. \n
+    A class for creating a set of filters for use in the VQT algorithm. \n
     Set Q_lowF and Q_highF to be the same value for a Constant Q Transform (CQT)
     filter set. Varying these values will varying the Q factor logarithmically
     across the frequency range. \n
 
-    RH 2022
+    RH 2022, 2024
 
     Args:
         Fs_sample (float):
@@ -291,111 +278,163 @@ def make_VQT_filters(
             Resolution of the mother wavelet. Should be a large integer.
         plot_pref (bool):
             Whether to plot the filters.
-
-    Returns:
-        filters (Torch ndarray):
-            Array of complex sinusoid filters.
-            shape: (n_freq_bins, win_size)
-        freqs (Torch array):
-            Array of frequencies corresponding to the filters.
-        wins (Torch ndarray):
-            Array of window functions corresponding to each filter. \n
-            shape: (n_freq_bins, win_size)
     """
-
-    # if win_size % 2 != 1:
-    #     raise ValueError("RH Error: win_size should be an odd integer")
-    
-    ## Make frequencies. Use a geometric spacing.
-    freqs = np.geomspace(
-        start=F_min,
-        stop=F_max,
-        num=n_freq_bins,
-        endpoint=True,
-        dtype=np.float32,
-    )
-
-    periods = 1 / freqs
-    periods_inSamples = Fs_sample * periods
-
-    if win_size is None:
-        win_size = int(np.ceil(Q_lowF * (Fs_sample / F_min)))
-        ## Make sure win_size is odd
-        if win_size % 2 != 1:
-            win_size += 1
-        win_size = 3 if win_size < 3 else win_size
-
-    ## Make windows
-    if isinstance(window_type, str):
-        ## Handle gaussian windows separately
-        scales = np.geomspace(
-            start=Q_lowF,
-            stop=Q_highF,
+    def __init__(
+        self,
+        Fs_sample: int=1000,
+        Q_lowF: int=3,
+        Q_highF: int=20,
+        F_min: int=10,
+        F_max: int=400,
+        n_freq_bins: int=55,
+        win_size: Optional[int]=None,
+        window_type: Union[str, np.ndarray, list, tuple]='gaussian',
+        symmetry: str='center',
+        taper_asymmetric: bool=True,
+        mother_resolution: int=10000,
+        plot_pref: bool=False,
+    ):
+        self.Fs_sample, self.Q_lowF, self.Q_highF, self.F_min, self.F_max, self.n_freq_bins, self.win_size, self.window_type, self.symmetry, self.taper_asymmetric, self.mother_resolution, self.plot_pref = \
+            Fs_sample, Q_lowF, Q_highF, F_min, F_max, n_freq_bins, win_size, window_type, symmetry, taper_asymmetric, mother_resolution, plot_pref
+        
+    def make_filters(self,):
+        """
+        Returns:
+            filters (Torch ndarray):
+                Array of complex sinusoid filters.
+                shape: (n_freq_bins, win_size)
+            freqs (Torch array):
+                Array of frequencies corresponding to the filters.
+            wins (Torch ndarray):
+                Array of window functions corresponding to each filter. \n
+                shape: (n_freq_bins, win_size)
+        """
+        Fs_sample, Q_lowF, Q_highF, F_min, F_max, n_freq_bins, win_size, window_type, symmetry, taper_asymmetric, mother_resolution, plot_pref = \
+            self.Fs_sample, self.Q_lowF, self.Q_highF, self.F_min, self.F_max, self.n_freq_bins, self.win_size, self.window_type, self.symmetry, self.taper_asymmetric, self.mother_resolution, self.plot_pref
+        
+        # if win_size % 2 != 1:
+        #     raise ValueError("RH Error: win_size should be an odd integer")
+        
+        ## Make frequencies. Use a geometric spacing.
+        freqs = np.geomspace(
+            start=F_min,
+            stop=F_max,
             num=n_freq_bins,
             endpoint=True,
             dtype=np.float32,
-        ) * periods_inSamples
-        scales = np.clip(scales, a_min=1, a_max=None)
-        if window_type == 'gaussian':
-            ## Make sigmas for gaussian windows. Use a geometric spacing.
-            window_type = ('gaussian', mother_resolution * 0.15)
-        # else:
-        ### Make mother wave
-        mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=mother_resolution, fftbins=False)
-        
-        wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
-        wins = torch.as_tensor(np.stack(wins, axis=0), dtype=torch.float32)
+        )
 
-    elif isinstance(window_type, (np.ndarray, list, tuple)):
-        mother_wave = np.array(window_type, dtype=np.float32)
-    else:
-        raise ValueError("window_type must be a string or an array-like")
+        periods = 1 / freqs
+        periods_inSamples = Fs_sample * periods
 
-        
-    ### Make windows symmetric or asymmetric
-    if symmetry=='center':
-        pass
-    else:
-        heaviside = (torch.arange(win_size) <= win_size//2).float()
-        if symmetry=='left':
-            pass
-        elif symmetry=='right':
-            heaviside = torch.flip(heaviside, dims=[0])
+        if win_size is None:
+            win_size = int(np.ceil(Q_lowF * (Fs_sample / F_min)))
+            ## Make sure win_size is odd
+            if win_size % 2 != 1:
+                win_size += 1
+            win_size = 3 if win_size < 3 else win_size
+
+        ## Make windows
+        if isinstance(window_type, str):
+            ## Handle gaussian windows separately
+            scales = np.geomspace(
+                start=Q_lowF,
+                stop=Q_highF,
+                num=n_freq_bins,
+                endpoint=True,
+                dtype=np.float32,
+            ) * periods_inSamples
+            scales = np.clip(scales, a_min=1, a_max=None)
+            if window_type == 'gaussian':
+                ## Make sigmas for gaussian windows. Use a geometric spacing.
+                window_type = ('gaussian', mother_resolution * 0.15)
+            # else:
+            ### Make mother wave
+            mother_wave = scipy.signal.windows.get_window(window=window_type, Nx=mother_resolution, fftbins=False)
+            
+            wins, xs = make_scaled_wave_basis(mother_wave, lens_waves=scales, lens_windows=win_size)
+            wins = torch.as_tensor(np.stack(wins, axis=0), dtype=torch.float32)
+
+        elif isinstance(window_type, (np.ndarray, list, tuple)):
+            mother_wave = np.array(window_type, dtype=np.float32)
         else:
-            raise ValueError("symmetry must be 'center', 'left', or 'right'")
-        wins *= heaviside
-        ### Taper the center of the window by multiplying center sample of window by 0.5
-        if taper_asymmetric:
-            wins[:, win_size//2] = wins[:, win_size//2] * 0.5
+            raise ValueError("window_type must be a string or an array-like")
+            
+        ### Make windows symmetric or asymmetric
+        if symmetry=='center':
+            pass
+        else:
+            heaviside = (torch.arange(win_size) <= win_size//2).float()
+            if symmetry=='left':
+                pass
+            elif symmetry=='right':
+                heaviside = torch.flip(heaviside, dims=[0])
+            else:
+                raise ValueError("symmetry must be 'center', 'left', or 'right'")
+            wins *= heaviside
+            ### Taper the center of the window by multiplying center sample of window by 0.5
+            if taper_asymmetric:
+                wins[:, win_size//2] = wins[:, win_size//2] * 0.5
 
-    filts = torch.stack([torch.cos(torch.linspace(-np.pi, np.pi, win_size) * freq * (win_size/Fs_sample)) * win for freq, win in zip(freqs, wins)], dim=0)
-    filts_complex = torch_hilbert(filts.T, dim=0).T
-    ## Normalize filters to have unit magnitude
-    filts_complex = filts_complex / torch.linalg.norm(filts_complex, ord=1, dim=1, keepdim=True)  ## Note: ord=1 is L1 norm. This makes the filters have unit magnitude.
-    
-    freqs = torch.as_tensor(freqs, dtype=torch.float32)
+        filts = torch.stack([torch.cos(torch.linspace(-np.pi, np.pi, win_size) * freq * (win_size/Fs_sample)) * win for freq, win in zip(freqs, wins)], dim=0)
+        filts_complex = torch_hilbert(filts.T, dim=0).T
+        ## Normalize filters to have unit magnitude
+        filts_complex = filts_complex / torch.linalg.norm(filts_complex, ord=1, dim=1, keepdim=True)  ## Note: ord=1 is L1 norm. This makes the filters have unit magnitude.
+        
+        freqs = torch.as_tensor(freqs, dtype=torch.float32)
 
-    ## Plot
-    if plot_pref:
-        plt.figure()
-        plt.plot(freqs)
-        plt.xlabel('filter num')
-        plt.ylabel('frequency (Hz)')
+        if plot_pref:
+            self._plot_VQT_filters(
+                filts_complex=filts_complex,
+                freqs=freqs,
+                wins=wins,
+                scales=scales,
+                win_size=win_size,
+                Fs_sample=Fs_sample,
+            )
 
-        plt.figure()
-        plt.imshow(wins / torch.max(wins, 1, keepdims=True)[0], aspect='auto')
-        plt.ylabel('filter num')
-        plt.title('windows (gaussian)')
+        self.filts_complex, self.freqs, self.wins, self.scales, self.win_size = \
+            filts_complex, freqs, wins, scales, win_size
 
-        plt.figure()
-        plt.plot(scales)
-        plt.xlabel('filter num')
-        plt.ylabel('window width scales')    
+        return filts_complex, freqs, wins
 
-        plt.figure()
-        plt.imshow(torch.real(filts_complex) / torch.max(torch.real(filts_complex), 1, keepdims=True)[0], aspect='auto', cmap='bwr', vmin=-1, vmax=1)
-        plt.ylabel('filter num')
-        plt.title('filters (real component)')
+
+    def _plot_VQT_filters(
+        self,
+        filts_complex: Optional[torch.Tensor]=None,
+        freqs: Optional[torch.Tensor]=None,
+        wins: Optional[torch.Tensor]=None,
+        scales: Optional[np.ndarray]=None,
+        win_size: Optional[int]=None,
+        Fs_sample: Optional[int]=None,
+    ):
+        filts_complex = filts_complex if filts_complex is not None else self.filts_complex
+        freqs = freqs if freqs is not None else self.freqs
+        wins = wins if wins is not None else self.wins
+        scales = scales if scales is not None else self.scales
+        win_size = win_size if win_size is not None else self.win_size
+        Fs_sample = Fs_sample if Fs_sample is not None else self.Fs_sample
+
+        ## Plot
+        fig_freqs, ax_freqs = plt.subplots()
+        ax_freqs.plot(freqs)
+        ax_freqs.set_xlabel('filter num')
+        ax_freqs.set_ylabel('frequency (Hz)')
+
+        fig_wins, ax_wins = plt.subplots()
+        ax_wins.imshow(wins / torch.max(wins, 1, keepdims=True)[0], aspect='auto')
+        ax_wins.set_ylabel('filter num')
+        ax_wins.set_title('windows (gaussian)')
+
+        fig_scales, ax_scales = plt.subplots()
+        ax_scales.plot(scales)
+        ax_scales.set_xlabel('filter num')
+        ax_scales.set_ylabel('window width scales')    
+
+        fig_filts, ax_filts = plt.subplots()
+        ax_filts.imshow(torch.real(filts_complex) / torch.max(torch.real(filts_complex), 1, keepdims=True)[0], aspect='auto', cmap='bwr', vmin=-1, vmax=1)
+        ax_filts.set_ylabel('filter num')
+        ax_filts.set_title('filters (real component)')
 
 
         worN=win_size*4
@@ -411,10 +450,22 @@ def make_VQT_filters(
             fs=Fs_sample
         )[0]
 
-        plt.figure()
-        plt.plot(filts_freq_xAxis, np.abs(filts_freq.T));
-        plt.xscale('log')
-        plt.xlabel('frequency (Hz)')
-        plt.ylabel('magnitude')
+        fig_freqResponse, ax_freqResponse = plt.subplots()
+        ax_freqResponse.plot(filts_freq_xAxis, np.abs(filts_freq.T));
+        ax_freqResponse.set_xscale('log')
+        ax_freqResponse.set_xlabel('frequency (Hz)')
+        ax_freqResponse.set_ylabel('magnitude')
 
-    return filts_complex, freqs, wins
+        plt.show()
+        return {
+            'fig_freqs': fig_freqs,
+            'ax_freqs': ax_freqs,
+            'fig_wins': fig_wins,
+            'ax_wins': ax_wins,
+            'fig_scales': fig_scales,
+            'ax_scales': ax_scales,
+            'fig_filts': fig_filts,
+            'ax_filts': ax_filts,
+            'fig_freqResponse': fig_freqResponse,
+            'ax_freqResponse': ax_freqResponse,
+        }
