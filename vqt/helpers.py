@@ -396,7 +396,7 @@ class VQT_filters:
         self.filts_complex, self.freqs, self.wins, self.scales, self.win_size = \
             filts_complex, freqs, wins, scales, win_size
 
-        return filts_complex, freqs, wins
+        return filts_complex, freqs, wins 
 
 
     def _plot_VQT_filters(

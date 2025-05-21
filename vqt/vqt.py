@@ -7,6 +7,7 @@ from tqdm import tqdm
 # import scipy.fftpack
 
 from . import helpers
+from . import optim
 
 class VQT(torch.nn.Module):
     """
@@ -74,9 +75,9 @@ class VQT(torch.nn.Module):
             Padding mode to use: \n
                 * If fft_conv==False: ['valid', 'same'] \n
                 * If fft_conv==True: ['full', 'valid', 'same'] \n
-        fft_conv (bool):
-            Whether to use FFT convolution. This is faster, but may be less
-            accurate. If False, uses torch's conv1d.
+        conv_mode (str):
+            Choose the convolutional processing mode: \n
+                * ['fft_conv', 'normal_conv', 'optim_conv']
         fast_length (bool):
             Whether to use scipy.fftpack.next_fast_len to 
                 find the next fast length for the FFT.
@@ -107,7 +108,7 @@ class VQT(torch.nn.Module):
         taper_asymmetric: bool=True,
         downsample_factor: int=4,
         padding: str='same',
-        fft_conv: bool=True,
+        conv_mode: str='normal_conv',
         fast_length: bool=True,
         take_abs: bool=True,
         filters: Optional[torch.Tensor]=None,
@@ -155,7 +156,7 @@ class VQT(torch.nn.Module):
             self.win_size, 
             self.downsample_factor, 
             self.padding, 
-            self.fft_conv,
+            self.conv_mode,
             self.fast_length,
             self.take_abs, 
             self.plot_pref, 
@@ -169,7 +170,7 @@ class VQT(torch.nn.Module):
             win_size, 
             downsample_factor, 
             padding, 
-            fft_conv,
+            conv_mode,
             fast_length,
             take_abs, 
             plot_pref, 
@@ -181,8 +182,8 @@ class VQT(torch.nn.Module):
             if win_size % 2 != 1:
                 print("Warning: win_size is even. This will result in a non-centered window. The x_axis will be offset by 0.5. It is recommended to use an odd win_size.")
             ## Warn if win_size is > 1024 to use fft_conv
-            if win_size > 1024 and fft_conv == False:
-                print(f"Warning: win_size is {win_size}, which is large for conv1d. Consider using fft_conv=True for faster computation.")
+            if win_size > 1024 and conv_mode != 'fft_conv':
+                print(f"Warning: win_size is {win_size}, which is large for conv1d. Consider using conv_mode='fft_conv' for faster computation.")
             
     def forward(
         self,
@@ -212,14 +213,14 @@ class VQT(torch.nn.Module):
 
         assert X.ndim==2, "X should be 2D"  ## (n_channels, n_samples)
         assert self.filters.ndim==2, "Filters should be 2D" ## (n_freq_bins, win_size)
-
+        # print('X: ', X.shape)
         ## Make spectrograms
         specs = downsample(
             X=convolve(
                 arr=X, 
                 kernels=self.filters, 
                 take_abs=self.take_abs,
-                fft_conv=self.fft_conv,
+                conv_mode=self.conv_mode,
                 padding=self.padding,
                 fast_length=self.fast_length,
             ), 
@@ -269,7 +270,7 @@ class VQT(torch.nn.Module):
 
     def __repr__(self):
         if self.using_custom_filters:
-            return f"VQT with custom filters"
+            return f"Optimized VQT with custom filters"
         else:
             attributes_to_print = []
             for k, v in self.__dict__.items():
@@ -342,7 +343,7 @@ def convolve(
     kernels: torch.Tensor, 
     take_abs: bool=False,
     padding: str='same', 
-    fft_conv: bool=False, 
+    conv_mode: str='normal_conv', 
     fast_length: bool=False,
 ) -> torch.Tensor:
     """
@@ -381,14 +382,28 @@ def convolve(
 
     arr = arr[:,None,:]  ## Shape: (n_channels, 1, n_samples)
     # kernels = kernels  ## Shape: (n_kernels, win_size)
+    # print('data in: ', arr.shape)
     
-    if fft_conv:
+    if conv_mode == 'fft_conv':
+        # print('fft_conv in')
         out = fftconvolve(
             x=arr,  
             y=(kernels)[None,:,:], 
             mode=padding,
             fast_length=fast_length,
         )
+        # print('fft_conv out: ', out.shape)
+    # elif conv_mode == 'optim_conv':
+    #     print('optim_conv in')
+    #     cropped_kernels, crop_indices = optim.optimize_filters_by_cropping(kernels)
+    #     print('kernels list: ', len(cropped_kernels))
+    #     out = optim.convolve_with_cropped_filters(
+    #         arr=arr,
+    #         cropped_kernels=cropped_kernels,
+    #         crop_indices=crop_indices,
+    #         padding=padding
+    #     )
+    #     print('optim_conv out: ', out.shape)
     else:
         flag_kernels_complex = kernels.is_complex()
         kernels = torch.flip(kernels, dims=[-1,])[:,None,:]  ## Flip because torch's conv1d uses cross-correlation, not convolution.
@@ -397,13 +412,25 @@ def convolve(
             kernels_list = [torch.real(kernels), torch.imag(kernels)]
         else:
             kernels_list = [kernels,]
+        # print('kernels list: ', [k.shape for k in kernels_list])
 
-        out_conv = [torch.nn.functional.conv1d(
-            input=arr, 
-            weight=k, 
-            padding=padding,
-        ) for k in kernels_list]
-        
+        if conv_mode == 'optim_conv':
+            # print('optim_conv in')
+            out_conv = [optim.optim_conv1d(
+                input=arr, 
+                weights=k.squeeze(1), 
+                padding='same',
+            ) for k in kernels_list]
+            # print('optim_conv out: ', torch.stack(out_conv, dim=0).shape)
+        else:
+            # print('normal_conv in')
+            out_conv = [torch.nn.functional.conv1d(
+                input=arr, 
+                weight=k, 
+                padding=padding,
+            ) for k in kernels_list]
+            # print('normal_conv out: ', torch.stack(out_conv, dim=0).shape)
+
         if flag_kernels_complex:
             out = torch.complex(out_conv[0], out_conv[1])
         else:
@@ -411,6 +438,8 @@ def convolve(
         
     if take_abs:
         out = torch.abs(out)
+
+    # print('data out: ', out.shape)
     return out
 
 
