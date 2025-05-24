@@ -115,7 +115,10 @@ constraints on the input parameters compared to `librosa` and `nnAudio`.
 
 #### What to improve on?
 Contributions are welcome! Feel free to open an issue or a pull request.
-  
+
+- Features:
+  - Inverse VQT: https://github.com/librosa/librosa/issues/1161#issuecomment-981771860
+
 - Speed / Memory usage:
   - **Lossless approaches**:
     - For the `conv1d` approach: I think it would be much faster if we cropped
